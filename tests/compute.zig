@@ -14,7 +14,7 @@ fn compute_collatz() ![4]u32 {
     const numbers_size = @sizeOf(@TypeOf(numbers));
     const numbers_length = numbers_size / @sizeOf(u32);
 
-    const instance = wgpu.Instance.create(null).?;
+    const instance = try wgpu.Instance.create(null);
     defer instance.release();
 
     const adapter_response = instance.requestAdapterSync(null, 200_000_000);

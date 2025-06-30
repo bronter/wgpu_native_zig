@@ -19,7 +19,7 @@ fn handleBufferMap(status: wgpu.MapAsyncStatus, _: wgpu.StringView, userdata1: ?
 // Based off of headless triangle example from https://github.com/eliemichel/LearnWebGPU-Code/tree/step030-headless
 
 pub fn main() !void {
-    const instance = wgpu.Instance.create(null).?;
+    const instance = try wgpu.Instance.create(null);
     defer instance.release();
 
     const adapter_request = instance.requestAdapterSync(&wgpu.RequestAdapterOptions {}, 0);

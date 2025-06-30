@@ -222,13 +222,13 @@ pub const Adapter = opaque{
 test "can request device" {
     const testing = @import("std").testing;
 
-    const instance = Instance.create(null);
-    const adapter_response = instance.?.requestAdapterSync(null, 200_000_000);
+    const instance = try Instance.create(null);
+    const adapter_response = instance.requestAdapterSync(null, 200_000_000);
     const adapter: ?*Adapter = switch(adapter_response.status) {
         .success => adapter_response.adapter,
         else => null,
     };
-    const device_response = adapter.?.requestDeviceSync(instance.?, null, 200_000_000);
+    const device_response = adapter.?.requestDeviceSync(instance, null, 200_000_000);
     const device: ?*Device = switch(device_response.status) {
         .success => device_response.device,
         else => null
