@@ -29,7 +29,7 @@ pub fn main() !void {
     };
     defer adapter.release();
 
-    const device_request = adapter.requestDeviceSync(instance, &wgpu.DeviceDescriptor {
+    const device_request = adapter.requestDeviceSync(instance, .{
         .required_limits = null,
     }, 0);
     const device = switch(device_request.status) {
@@ -38,17 +38,17 @@ pub fn main() !void {
     };
     defer device.release();
 
-    const queue = device.getQueue().?;
+    const queue = try device.getQueue();
     defer queue.release();
 
     const swap_chain_format = wgpu.TextureFormat.bgra8_unorm_srgb;
 
-    const target_texture = device.createTexture(&wgpu.TextureDescriptor {
+    const target_texture = try device.createTexture(&wgpu.TextureDescriptor {
         .label = wgpu.StringView.fromSlice("Render texture"),
         .size = output_extent,
         .format = swap_chain_format,
         .usage = wgpu.TextureUsages.render_attachment | wgpu.TextureUsages.copy_src,
-    }).?;
+    });
     defer target_texture.release();
 
     const target_texture_view = target_texture.createView(&wgpu.TextureViewDescriptor {
@@ -57,17 +57,17 @@ pub fn main() !void {
         .array_layer_count = 1,
     }).?;
 
-    const shader_module = device.createShaderModule(&wgpu.shaderModuleWGSLDescriptor(.{
+    const shader_module = try device.createShaderModule(&wgpu.shaderModuleWGSLDescriptor(.{
         .code = @embedFile("./shader.wgsl"),
-    })).?;
+    }));
     defer shader_module.release();
 
-    const staging_buffer = device.createBuffer(&wgpu.BufferDescriptor {
+    const staging_buffer = try device.createBuffer(&wgpu.BufferDescriptor {
         .label = wgpu.StringView.fromSlice("staging_buffer"),
         .usage = wgpu.BufferUsages.map_read | wgpu.BufferUsages.copy_dst,
         .size = output_size,
         .mapped_at_creation = @as(u32, @intFromBool(false)),
-    }).?;
+    });
     defer staging_buffer.release();
 
     const color_targets = &[_] wgpu.ColorTargetState{
@@ -88,7 +88,7 @@ pub fn main() !void {
         },
     };
 
-    const pipeline = device.createRenderPipeline(&wgpu.RenderPipelineDescriptor {
+    const pipeline = try device.createRenderPipeline(&wgpu.RenderPipelineDescriptor {
         .vertex = wgpu.VertexState {
             .module = shader_module,
             .entry_point = wgpu.StringView.fromSlice("vs_main"),
@@ -101,15 +101,15 @@ pub fn main() !void {
             .targets = color_targets.ptr
         },
         .multisample = wgpu.MultisampleState {},
-    }).?;
+    });
     defer pipeline.release();
 
     { // Mock main "loop"
         const next_texture = target_texture_view;
 
-        const encoder = device.createCommandEncoder(&wgpu.CommandEncoderDescriptor {
+        const encoder = try device.createCommandEncoder(&wgpu.CommandEncoderDescriptor {
             .label = wgpu.StringView.fromSlice("Command Encoder"),
-        }).?;
+        });
         defer encoder.release();
 
         const color_attachments = &[_]wgpu.ColorAttachment{

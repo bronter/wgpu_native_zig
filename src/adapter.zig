@@ -20,6 +20,8 @@ const Instance = @import("instance.zig").Instance;
 const _device = @import("device.zig");
 const Device = _device.Device;
 const DeviceDescriptor = _device.DeviceDescriptor;
+const WGPUDeviceDescriptor = _device.WGPUDeviceDescriptor;
+const WGPUDeviceExtras = _device.WGPUDeviceExtras;
 const RequestDeviceCallback = _device.RequestDeviceCallback;
 const RequestDeviceCallbackInfo = _device.RequestDeviceCallbackInfo;
 const RequestDeviceStatus = _device.RequestDeviceStatus;
@@ -145,7 +147,7 @@ pub const AdapterProcs = struct {
     pub const GetLimits = *const fn(*Adapter, *Limits) callconv(.C) Status;
     pub const GetInfo = *const fn(*Adapter, *AdapterInfo) callconv(.C) Status;
     pub const HasFeature = *const fn(*Adapter, FeatureName) callconv(.C) WGPUBool;
-    pub const RequestDevice = *const fn(*Adapter, ?*const DeviceDescriptor, RequestDeviceCallbackInfo) callconv(.C) Future;
+    pub const RequestDevice = *const fn(*Adapter, ?*const WGPUDeviceDescriptor, RequestDeviceCallbackInfo) callconv(.C) Future;
     pub const AddRef = *const fn(*Adapter) callconv(.C) void;
     pub const Release = *const fn(*Adapter) callconv(.C) void;
 };
@@ -154,7 +156,7 @@ extern fn wgpuAdapterGetFeatures(adapter: *Adapter, features: *SupportedFeatures
 extern fn wgpuAdapterGetLimits(adapter: *Adapter, limits: *Limits) Status;
 extern fn wgpuAdapterGetInfo(adapter: *Adapter, info: *AdapterInfo) Status;
 extern fn wgpuAdapterHasFeature(adapter: *Adapter, feature: FeatureName) WGPUBool;
-extern fn wgpuAdapterRequestDevice(adapter: *Adapter, descriptor: ?*const DeviceDescriptor, callback_info: RequestDeviceCallbackInfo) Future;
+extern fn wgpuAdapterRequestDevice(adapter: *Adapter, descriptor: ?*const WGPUDeviceDescriptor, callback_info: RequestDeviceCallbackInfo) Future;
 extern fn wgpuAdapterAddRef(adapter: *Adapter) void;
 extern fn wgpuAdapterRelease(adapter: *Adapter) void;
 
@@ -186,7 +188,7 @@ pub const Adapter = opaque{
 
     // This is a synchronous wrapper that handles asynchronous (callback) logic.
     // It uses polling to see when the request has been fulfilled, so needs a polling interval parameter.
-    pub fn requestDeviceSync(self: *Adapter, instance: *Instance, descriptor: ?*const DeviceDescriptor, polling_interval_nanoseconds: u64) RequestDeviceResponse {
+    pub fn requestDeviceSync(self: *Adapter, instance: *Instance, descriptor: ?DeviceDescriptor, polling_interval_nanoseconds: u64) RequestDeviceResponse {
         var response: RequestDeviceResponse = undefined;
         var completed = false;
         const callback_info = RequestDeviceCallbackInfo {
@@ -194,7 +196,7 @@ pub const Adapter = opaque{
             .userdata1 = @ptrCast(&response),
             .userdata2 = @ptrCast(&completed),
         };
-        const device_future = wgpuAdapterRequestDevice(self, descriptor, callback_info);
+        const device_future = self.requestDevice(descriptor, callback_info);
 
         // TODO: Revisit once Instance.waitAny() is implemented in wgpu-native,
         //       it takes in futures and returns when one of them completes.
@@ -208,8 +210,31 @@ pub const Adapter = opaque{
         return response;
     }
 
-    pub inline fn requestDevice(self: *Adapter, descriptor: ?*const DeviceDescriptor, callback_info: RequestDeviceCallbackInfo) Future {
-        return wgpuAdapterRequestDevice(self, descriptor, callback_info);
+    pub inline fn requestDevice(self: *Adapter, descriptor: ?DeviceDescriptor, callback_info: RequestDeviceCallbackInfo) Future {
+        if(descriptor) |d| {
+            var device_extras: ?*const ChainedStruct = undefined;
+            if(d.native_extras) |native_extras| {
+                device_extras = @ptrCast(&WGPUDeviceExtras {
+                    .trace_path = .fromSlice(native_extras.trace_path),
+                });
+            } else {
+                device_extras = null;
+            }
+
+            return wgpuAdapterRequestDevice(self, &WGPUDeviceDescriptor{
+                .next_in_chain = device_extras,
+                .label = .fromSlice(d.label),
+                .required_feature_count = d.required_features.len,
+                .required_features = d.required_features.ptr,
+                .required_limits = if(d.required_limits) |l| &l else null,
+                .default_queue = d.default_queue,
+                .device_lost_callback_info = d.device_lost_callback_info,
+                .uncaptured_error_callback_info = d.uncaptured_error_callback_info,
+            }, callback_info);
+        } else {
+            return wgpuAdapterRequestDevice(self, null, callback_info);
+        }
+
     }
     pub inline fn addRef(self: *Adapter) void {
         wgpuAdapterAddRef(self);
