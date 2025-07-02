@@ -189,13 +189,13 @@ pub const Adapter = opaque{
     pub inline fn getLimits(self: *Adapter) AdapterError!Limits {
         var limits = Limits{};
         if(wgpuAdapterGetLimits(self, &limits) == .@"error")
-            return error.FailtedToGetLimits;
+            return error.FailedToGetLimits;
         return limits;
     }
     pub inline fn getInfo(self: *Adapter) AdapterError!AdapterInfo {
         var adapter_info = WGPUAdapterInfo{};
         if(wgpuAdapterGetInfo(self, &adapter_info) == .@"error")
-            return error.FailtedToGetAdapterInfo;
+            return error.FailedToGetAdapterInfo;
         return AdapterInfo{
             .next_in_chain = adapter_info.next_in_chain,
             .vendor = adapter_info.vendor.toSlice(),
