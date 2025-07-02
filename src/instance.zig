@@ -85,8 +85,8 @@ pub const InstanceExtras = struct {
     dx12_shader_compiler: Dx12Compiler,
     gles3_minor_version: Gles3MinorVersion,
     gl_fence_behavior: GLFenceBehaviour,
-    dxil_path: [] u8 = "",
-    dxc_path: []u8 = "",
+    dxil_path: []const u8 = "",
+    dxc_path: []const u8 = "",
     dxc_max_shader_model: DxcMaxShaderModel,
 };
 
