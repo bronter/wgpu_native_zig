@@ -25,50 +25,50 @@ fn compute_collatz() ![4]u32 {
     defer adapter.release();
 
     const device_response = adapter.requestDeviceSync(instance, null, 200_000_000);
-    const device = switch(device_response.status) {
+    const device: *wgpu.Device = switch(device_response.status) {
         .success => device_response.device.?,
         else => return error.NoDevice,
     };
     defer device.release();
 
-    const queue = device.getQueue().?;
+    const queue = try device.getQueue();
     defer queue.release();
 
-    const shader_module = device.createShaderModule(&wgpu.shaderModuleWGSLDescriptor(.{
+    const shader_module = try device.createShaderModule(&wgpu.shaderModuleWGSLDescriptor(.{
         .label = "compute.wgsl",
         .code = @embedFile("./compute.wgsl"),
-    })).?;
+    }));
     defer shader_module.release();
 
-    const staging_buffer = device.createBuffer(&wgpu.BufferDescriptor {
+    const staging_buffer = try device.createBuffer(&wgpu.BufferDescriptor {
         .label = wgpu.StringView.fromSlice("staging_buffer"),
         .usage = wgpu.BufferUsages.map_read | wgpu.BufferUsages.copy_dst,
         .size = numbers_size,
         .mapped_at_creation = @as(u32, @intFromBool(false)),
-    }).?;
+    });
     defer staging_buffer.release();
 
-    const storage_buffer = device.createBuffer(&wgpu.BufferDescriptor {
+    const storage_buffer = try device.createBuffer(&wgpu.BufferDescriptor {
         .label = wgpu.StringView.fromSlice("storage_buffer"),
         .usage = wgpu.BufferUsages.storage | wgpu.BufferUsages.copy_dst | wgpu.BufferUsages.copy_src,
         .size = numbers_size,
         .mapped_at_creation = @as(u32, @intFromBool(false)),
-    }).?;
+    });
     defer storage_buffer.release();
 
-    const compute_pipeline = device.createComputePipeline(&wgpu.ComputePipelineDescriptor {
+    const compute_pipeline = try device.createComputePipeline(&wgpu.ComputePipelineDescriptor {
         .label = wgpu.StringView.fromSlice("compute_pipeline"),
         .compute = wgpu.ProgrammableStageDescriptor {
             .module = shader_module,
             .entry_point = wgpu.StringView.fromSlice("main"),
         },
-    }).?;
+    });
     defer compute_pipeline.release();
 
     const bind_group_layout = compute_pipeline.getBindGroupLayout(0).?;
     defer bind_group_layout.release();
 
-    const bind_group = device.createBindGroup(&wgpu.BindGroupDescriptor {
+    const bind_group = try device.createBindGroup(&wgpu.BindGroupDescriptor {
         .label = wgpu.StringView.fromSlice("bind_group"),
         .layout = bind_group_layout,
         .entry_count = 1,
@@ -80,12 +80,12 @@ fn compute_collatz() ![4]u32 {
                 .size = numbers_size,
             }
         },
-    }).?;
+    });
     defer bind_group.release();
 
-    const command_encoder = device.createCommandEncoder(&wgpu.CommandEncoderDescriptor {
+    const command_encoder = try device.createCommandEncoder(&wgpu.CommandEncoderDescriptor {
         .label = wgpu.StringView.fromSlice("command_encoder"),
-    }).?;
+    });
     defer command_encoder.release();
 
     const compute_pass_encoder = command_encoder.beginComputePass(&wgpu.ComputePassDescriptor {
