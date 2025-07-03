@@ -22,7 +22,7 @@ pub fn main() !void {
     const instance = try wgpu.Instance.create(null);
     defer instance.release();
 
-    const adapter_request = instance.requestAdapterSync(&wgpu.RequestAdapterOptions {}, 0);
+    const adapter_request = instance.requestAdapterSync(wgpu.RequestAdapterOptions {}, 0);
     const adapter = switch(adapter_request.status) {
         .success => adapter_request.adapter.?,
         else => return error.NoAdapter,

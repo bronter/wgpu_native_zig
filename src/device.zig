@@ -18,7 +18,7 @@ const Future = _async.Future;
 const _limits = @import("limits.zig");
 const Limits = _limits.Limits;
 
-const AdapterInfo = @import("adapter.zig").AdapterInfo;
+const AdapterInfo = @import("adapter.zig").WGPUAdapterInfo;
 
 const _bind_group = @import("bind_group.zig");
 const BindGroupDescriptor = _bind_group.BindGroupDescriptor;

@@ -311,7 +311,7 @@ pub const Instance = opaque {
 
     // This is a synchronous wrapper that handles asynchronous (callback) logic.
     // It uses polling to see when the request has been fulfilled, so needs a polling interval parameter.
-    pub fn requestAdapterSync(self: *Instance, options: ?*const RequestAdapterOptions, polling_interval_nanoseconds: u64) RequestAdapterResponse {
+    pub fn requestAdapterSync(self: *Instance, options: ?RequestAdapterOptions, polling_interval_nanoseconds: u64) RequestAdapterResponse {
         var response: RequestAdapterResponse = undefined;
         var completed = false;
         const callback_info = RequestAdapterCallbackInfo {
@@ -319,7 +319,7 @@ pub const Instance = opaque {
             .userdata1 = @ptrCast(&response),
             .userdata2 = @ptrCast(&completed),
         };
-        const adapter_future = wgpuInstanceRequestAdapter(self, options, callback_info);
+        const adapter_future = self.requestAdapter(options, callback_info);
 
         // TODO: Revisit once Instance.waitAny() is implemented in wgpu-native,
         //       it takes in futures and returns when one of them completes.
@@ -333,8 +333,12 @@ pub const Instance = opaque {
         return response;
     }
 
-    pub inline fn requestAdapter(self: *Instance, options: ?*const RequestAdapterOptions, callback_info: RequestAdapterCallbackInfo) Future {
-        return wgpuInstanceRequestAdapter(self, options, callback_info);
+    pub inline fn requestAdapter(self: *Instance, options: ?RequestAdapterOptions, callback_info: RequestAdapterCallbackInfo) Future {
+        if(options) |o| {
+            return wgpuInstanceRequestAdapter(self, &o, callback_info);
+        } else {
+            return wgpuInstanceRequestAdapter(self, null, callback_info);
+        }
     }
 
     // Unimplemented as of wgpu-native v25.0.2.1,

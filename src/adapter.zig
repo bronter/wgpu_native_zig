@@ -120,13 +120,35 @@ pub const RequestAdapterResponse = struct {
     adapter: ?*Adapter,
 };
 
-pub const AdapterInfoProcs = struct {
-    pub const FreeMembers = *const fn(AdapterInfo) callconv(.C) void;
+extern fn wgpuAdapterInfoFreeMembers(adapter_info: WGPUAdapterInfo) void;
+
+pub const AdapterInfo = struct {
+    next_in_chain: ?*ChainedStructOut = null,
+    vendor: ?[]const u8,
+    architecture: ?[]const u8,
+    device: ?[]const u8,
+    description: ?[]const u8,
+    backend_type: BackendType,
+    adapter_type: AdapterType,
+    vendor_id: u32,
+    device_id: u32,
+
+    pub inline fn freeMembers(self: AdapterInfo) void {
+        wgpuAdapterInfoFreeMembers(WGPUAdapterInfo{
+            .next_in_chain = self.next_in_chain,
+            .vendor = .fromSlice(self.vendor),
+            .architecture = .fromSlice(self.architecture),
+            .device = .fromSlice(self.device),
+            .description = .fromSlice(self.description),
+            .backend_type = self.backend_type,
+            .adapter_type = self.adapter_type,
+            .vendor_id = self.vendor_id,
+            .device_id = self.device_id,
+        });
+    }
 };
 
-extern fn wgpuAdapterInfoFreeMembers(adapter_info: AdapterInfo) void;
-
-pub const AdapterInfo = extern struct {
+pub const WGPUAdapterInfo = extern struct {
     next_in_chain: ?*ChainedStructOut = null,
     vendor: StringView,
     architecture: StringView,
@@ -137,38 +159,54 @@ pub const AdapterInfo = extern struct {
     vendor_id: u32,
     device_id: u32,
 
-    pub inline fn freeMembers(self: AdapterInfo) void {
+    pub inline fn freeMembers(self: WGPUAdapterInfo) void {
         wgpuAdapterInfoFreeMembers(self);
     }
 };
 
-pub const AdapterProcs = struct {
-    pub const GetFeatures = *const fn(*Adapter, *SupportedFeatures) callconv(.C) void;
-    pub const GetLimits = *const fn(*Adapter, *Limits) callconv(.C) Status;
-    pub const GetInfo = *const fn(*Adapter, *AdapterInfo) callconv(.C) Status;
-    pub const HasFeature = *const fn(*Adapter, FeatureName) callconv(.C) WGPUBool;
-    pub const RequestDevice = *const fn(*Adapter, ?*const WGPUDeviceDescriptor, RequestDeviceCallbackInfo) callconv(.C) Future;
-    pub const AddRef = *const fn(*Adapter) callconv(.C) void;
-    pub const Release = *const fn(*Adapter) callconv(.C) void;
-};
-
 extern fn wgpuAdapterGetFeatures(adapter: *Adapter, features: *SupportedFeatures) void;
 extern fn wgpuAdapterGetLimits(adapter: *Adapter, limits: *Limits) Status;
-extern fn wgpuAdapterGetInfo(adapter: *Adapter, info: *AdapterInfo) Status;
+extern fn wgpuAdapterGetInfo(adapter: *Adapter, info: *WGPUAdapterInfo) Status;
 extern fn wgpuAdapterHasFeature(adapter: *Adapter, feature: FeatureName) WGPUBool;
 extern fn wgpuAdapterRequestDevice(adapter: *Adapter, descriptor: ?*const WGPUDeviceDescriptor, callback_info: RequestDeviceCallbackInfo) Future;
 extern fn wgpuAdapterAddRef(adapter: *Adapter) void;
 extern fn wgpuAdapterRelease(adapter: *Adapter) void;
 
+pub const AdapterError = error {
+    FailedToGetLimits,
+    FailedToGetInfo,
+} || std.mem.Allocator.Error;
+
 pub const Adapter = opaque{
-    pub inline fn getFeatures(self: *Adapter, features: *SupportedFeatures) void {
-        wgpuAdapterGetFeatures(self, features);
+    pub inline fn getFeatures(self: *Adapter, allocator: std.mem.Allocator) AdapterError![]FeatureName {
+        var features = SupportedFeatures{};
+        defer features.freeMembers();
+
+        wgpuAdapterGetFeatures(self, &features);
+        
+        return try allocator.dupe(FeatureName, features.features[0..features.feature_count]);
     }
-    pub inline fn getLimits(self: *Adapter, limits: *Limits) Status {
-        return wgpuAdapterGetLimits(self, limits);
+    pub inline fn getLimits(self: *Adapter) AdapterError!Limits {
+        var limits = Limits{};
+        if(wgpuAdapterGetLimits(self, &limits) == .@"error")
+            return error.FailedToGetLimits;
+        return limits;
     }
-    pub inline fn getInfo(self: *Adapter, info: *AdapterInfo) Status {
-        return wgpuAdapterGetInfo(self, info);
+    pub inline fn getInfo(self: *Adapter) AdapterError!AdapterInfo {
+        var adapter_info = WGPUAdapterInfo{};
+        if(wgpuAdapterGetInfo(self, &adapter_info) == .@"error")
+            return error.FailedToGetAdapterInfo;
+        return AdapterInfo{
+            .next_in_chain = adapter_info.next_in_chain,
+            .vendor = adapter_info.vendor.toSlice(),
+            .architecture = adapter_info.architecture.toSlice(),
+            .device = adapter_info.device.toSlice(),
+            .description = adapter_info.description.toSlice(),
+            .backend_type = adapter_info.backend_type,
+            .adapter_type = adapter_info.adapter_type,
+            .vendor_id = adapter_info.vendor_id,
+            .device_id = adapter_info.device_id,
+        };
     }
     pub inline fn hasFeature(self: *Adapter, feature: FeatureName) bool {
         return wgpuAdapterHasFeature(self, feature) != 0;
