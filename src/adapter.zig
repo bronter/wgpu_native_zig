@@ -86,12 +86,19 @@ pub const RequestAdapterOptions = extern struct {
     compatible_surface: ?*Surface = null,
 };
 
-pub const RequestAdapterStatus = enum(u32) {
+const RequestAdapterStatus = enum(u32) {
     success          = 0x00000001,
     instance_dropped = 0x00000002,
     unavailable      = 0x00000003,
     @"error"         = 0x00000004,
     unknown          = 0x00000005,
+};
+
+pub const RequestAdapterError = error {
+    RequestAdapterInstanceDropped,
+    RequestAdapterUnavailable,
+    RequestAdapterError,
+    RequestAdapterUnknown,
 };
 
 pub const RequestAdapterCallbackInfo = extern struct {
@@ -113,6 +120,26 @@ pub const RequestAdapterCallback = *const fn(
     userdata1: ?*anyopaque,
     userdata2: ?*anyopaque,
 ) callconv(.C) void;
+
+pub fn MakeRequestAdapterCallbackTrampoline(
+    comptime UserDataPointerType: type,
+) type {
+    const CallbackType = *const fn(RequestAdapterError!*Adapter, ?[]const u8, UserDataPointerType) void;
+    return struct {
+        pub fn callback(status: RequestAdapterStatus, adapter: ?*Adapter, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.C) void {
+            const wrapped_callback: CallbackType = @ptrCast(userdata2);
+            const userdata: UserDataPointerType = @ptrCast(@alignCast(userdata1));
+            const response: RequestAdapterError!*Adapter = switch (status) {
+                .success => adapter.?,
+                .instance_dropped => RequestAdapterError.RequestAdapterInstanceDropped,
+                .unavailable => RequestAdapterError.RequestAdapterUnavailable,
+                .@"error" => RequestAdapterError.RequestAdapterError,
+                .unknown => RequestAdapterError.RequestAdapterUnknown,
+            };
+            wrapped_callback(response, message.toSlice(), userdata);
+        }
+    };
+}
 
 pub const RequestAdapterResponse = struct {
     status: RequestAdapterStatus,
@@ -286,12 +313,8 @@ test "can request device" {
     const testing = @import("std").testing;
 
     const instance = try Instance.create(null);
-    const adapter_response = instance.requestAdapterSync(null, 200_000_000);
-    const adapter: ?*Adapter = switch(adapter_response.status) {
-        .success => adapter_response.adapter,
-        else => null,
-    };
-    const device_response = adapter.?.requestDeviceSync(instance, null, 200_000_000);
+    const adapter = try instance.requestAdapterSync(null, 200_000_000);
+    const device_response = adapter.requestDeviceSync(instance, null, 200_000_000);
     const device: ?*Device = switch(device_response.status) {
         .success => device_response.device,
         else => null

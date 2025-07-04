@@ -10,9 +10,10 @@ const Adapter = _adapter.Adapter;
 const RequestAdapterOptions = _adapter.RequestAdapterOptions;
 const RequestAdapterCallbackInfo = _adapter.RequestAdapterCallbackInfo;
 const RequestAdapterCallback = _adapter.RequestAdapterCallback;
-const RequestAdapterStatus = _adapter.RequestAdapterStatus;
+const RequestAdapterError = _adapter.RequestAdapterError;
 const RequestAdapterResponse = _adapter.RequestAdapterResponse;
 const BackendType = _adapter.BackendType;
+const MakeRequestAdapterCallbackTrampoline = _adapter.MakeRequestAdapterCallbackTrampoline;
 
 const _surface = @import("surface.zig");
 const Surface = _surface.Surface;
@@ -28,6 +29,7 @@ const _async = @import("async.zig");
 const Future = _async.Future;
 const WaitStatus = _async.WaitStatus;
 const FutureWaitInfo = _async.FutureWaitInfo;
+const CallbackMode = _async.CallbackMode;
 
 pub const InstanceBackend = WGPUFlags;
 pub const InstanceBackends = struct {
@@ -172,7 +174,7 @@ extern fn wgpuGetInstanceCapabilities(capabilities: *WGPUInstanceCapabilities) S
 
 extern fn wgpuCreateInstance(descriptor: ?*const WGPUInstanceDescriptor) ?*Instance;
 extern fn wgpuInstanceCreateSurface(instance: *Instance, descriptor: *const SurfaceDescriptor) ?*Surface;
-extern fn wgpuInstanceGetWGSLLanguageFeatures(instance: *Instance, features: *SupportedWGSLLanguageFeatures) Status;
+extern fn wgpuInstanceGetWGSLLanguageFeatures(instance: *Instance, features: *WGPUSupportedWGSLLanguageFeatures) Status;
 extern fn wgpuInstanceHasWGSLLanguageFeature(instance: *Instance, feature: WGSLLanguageFeatureName) WGPUBool;
 extern fn wgpuInstanceProcessEvents(instance: *Instance) void;
 extern fn wgpuInstanceRequestAdapter(instance: *Instance, options: ?*const RequestAdapterOptions, callback_info: RequestAdapterCallbackInfo) Future;
@@ -224,7 +226,7 @@ extern fn wgpuInstanceEnumerateAdapters(instance: *Instance, options: ?*Enumerat
 pub const InstanceError = error {
     FailedToCreateInstance,
     FailedToGetCapabilities,
-} || std.mem.Allocator.Error;
+} || RequestAdapterError || std.mem.Allocator.Error;
 
 pub const Instance = opaque {
     // This is a global function, but it creates an instance so I put it here.
@@ -297,44 +299,60 @@ pub const Instance = opaque {
         wgpuInstanceProcessEvents(self);
     }
 
-    fn defaultAdapterCallback(status: RequestAdapterStatus, adapter: ?*Adapter, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.C) void {
-        const ud_response: *RequestAdapterResponse = @ptrCast(@alignCast(userdata1));
-        ud_response.* = RequestAdapterResponse {
-            .status = status,
-            .message = message.toSlice(),
-            .adapter = adapter,
+    // Meant to be used within requestAdapterSync, though it might be a good default to expose.
+    fn defaultAdapterCallback(response: RequestAdapterError!*Adapter, maybe_message: ?[]const u8, userdata: *?RequestAdapterError!*Adapter) void {
+        userdata.* = response catch blk: {
+            if (maybe_message) |message| {
+                std.log.err("{s}\n", .{message});
+            }
+            break :blk response;
         };
-
-        const completed: *bool = @ptrCast(@alignCast(userdata2));
-        completed.* = true;
     }
 
     // This is a synchronous wrapper that handles asynchronous (callback) logic.
     // It uses polling to see when the request has been fulfilled, so needs a polling interval parameter.
-    pub fn requestAdapterSync(self: *Instance, options: ?RequestAdapterOptions, polling_interval_nanoseconds: u64) RequestAdapterResponse {
-        var response: RequestAdapterResponse = undefined;
-        var completed = false;
-        const callback_info = RequestAdapterCallbackInfo {
-            .callback = defaultAdapterCallback,
-            .userdata1 = @ptrCast(&response),
-            .userdata2 = @ptrCast(&completed),
-        };
-        const adapter_future = self.requestAdapter(options, callback_info);
+    // A polling interval of 0 is valid, and probably what you'd want in most cases.
+    pub fn requestAdapterSync(self: *Instance, options: ?RequestAdapterOptions, polling_interval_nanoseconds: u64) InstanceError!*Adapter {
+        var adapter_response: ?RequestAdapterError!*Adapter = null;
+
+        const adapter_future = self.requestAdapter(
+            null,
+            &adapter_response,
+            defaultAdapterCallback,
+            options,
+        );
 
         // TODO: Revisit once Instance.waitAny() is implemented in wgpu-native,
         //       it takes in futures and returns when one of them completes.
         _ = adapter_future;
         self.processEvents();
-        while (!completed) {
+        while (adapter_response == null) {
             std.Thread.sleep(polling_interval_nanoseconds);
             self.processEvents();
         }
 
-        return response;
+        return adapter_response.?;
     }
 
-    pub inline fn requestAdapter(self: *Instance, options: ?RequestAdapterOptions, callback_info: RequestAdapterCallbackInfo) Future {
-        if(options) |o| {
+
+    pub fn requestAdapter(
+        self: *Instance,
+        mode: ?CallbackMode,
+        userdata: anytype,
+        callback: *const fn(RequestAdapterError!*Adapter, ?[]const u8, @TypeOf(userdata)) void,
+        options: ?RequestAdapterOptions,
+    ) Future {
+        if (@typeInfo(@TypeOf(userdata)) != .pointer) {
+            @compileError("userdata should be a pointer type");
+        }
+        const Trampoline = MakeRequestAdapterCallbackTrampoline(@TypeOf(userdata));
+        const callback_info = RequestAdapterCallbackInfo {
+            .mode = mode orelse CallbackMode.allow_process_events,
+            .callback = Trampoline.callback,
+            .userdata1 = @ptrCast(userdata),
+            .userdata2 = @constCast(@ptrCast(callback)),
+        };
+        if (options) |o| {
             return wgpuInstanceRequestAdapter(self, &o, callback_info);
         } else {
             return wgpuInstanceRequestAdapter(self, null, callback_info);
@@ -378,16 +396,10 @@ test "can create instance (and release it afterwards)" {
     instance.release();
 }
 
-test "can request adapter" {
-    const testing = @import("std").testing;
-
+test "requestAdapterSync returns adapter" {
     const instance = try Instance.create(null);
-    const response = instance.requestAdapterSync(null, 200_000_000);
-    const adapter: ?*Adapter = switch(response.status) {
-        .success => response.adapter,
-        else => null,
-    };
-    try testing.expect(adapter != null);
+    const response = try instance.requestAdapterSync(null, 0);
+    _ = response;
 }
 
 test "can enumerate adapters" {

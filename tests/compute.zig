@@ -17,11 +17,7 @@ fn compute_collatz() ![4]u32 {
     const instance = try wgpu.Instance.create(null);
     defer instance.release();
 
-    const adapter_response = instance.requestAdapterSync(null, 200_000_000);
-    const adapter = switch(adapter_response.status) {
-        .success => adapter_response.adapter.?,
-        else => return error.NoAdapter,
-    };
+    const adapter = try instance.requestAdapterSync(null, 0);
     defer adapter.release();
 
     const device_response = adapter.requestDeviceSync(instance, null, 200_000_000);
