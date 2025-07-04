@@ -25,13 +25,9 @@ pub fn main() !void {
     const adapter = try instance.requestAdapterSync(wgpu.RequestAdapterOptions {}, 0);
     defer adapter.release();
 
-    const device_request = adapter.requestDeviceSync(instance, .{
+    const device = try adapter.requestDeviceSync(instance, .{
         .required_limits = null,
     }, 0);
-    const device = switch(device_request.status) {
-        .success => device_request.device.?,
-        else => return error.NoDevice,
-    };
     defer device.release();
 
     const queue = try device.getQueue();

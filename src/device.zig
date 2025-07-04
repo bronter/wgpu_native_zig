@@ -158,21 +158,19 @@ pub const WGPUDeviceDescriptor = extern struct {
     default_queue: QueueDescriptor = QueueDescriptor{},
     device_lost_callback_info: DeviceLostCallbackInfo = DeviceLostCallbackInfo {},
     uncaptured_error_callback_info: UncapturedErrorCallbackInfo = UncapturedErrorCallbackInfo{},
-
-    // pub inline fn withTracePath(self: DeviceDescriptor, trace_path: []const u8) DeviceDescriptor {
-    //     var dd = self;
-    //     dd.next_in_chain = @ptrCast(&DeviceExtras {
-    //         .trace_path = StringView.fromSlice(trace_path),
-    //     });
-    //     return dd;
-    // }
 };
 
-pub const RequestDeviceStatus = enum(u32) {
+const RequestDeviceStatus = enum(u32) {
     success          = 0x00000001,
     instance_dropped = 0x00000002,
     @"error"         = 0x00000003,
     unknown          = 0x00000004,
+};
+
+pub const RequestDeviceError = error {
+    RequestDeviceInstanceDropped,
+    RequestDeviceError,
+    RequestDeviceUnknown,
 };
 
 // TODO: This probably belongs in adapter.zig
@@ -184,12 +182,6 @@ pub const RequestDeviceCallback = *const fn(
     userdata2: ?*anyopaque
 ) callconv(.C) void;
 
-pub const RequestDeviceResponse = struct {
-    status: RequestDeviceStatus,
-    message: ?[]const u8,
-    device: ?*Device,
-};
-
 pub const RequestDeviceCallbackInfo = extern struct {
     next_in_chain: ?*ChainedStruct = null,
 
@@ -200,6 +192,25 @@ pub const RequestDeviceCallbackInfo = extern struct {
     userdata1: ?*anyopaque = null,
     userdata2: ?*anyopaque = null,
 };
+
+pub fn MakeRequestDeviceCallbackTrampoline(
+    comptime UserDataPointerType: type,
+) type {
+    const CallbackType = *const fn(RequestDeviceError!*Device, ?[]const u8, UserDataPointerType) void;
+    return struct {
+        pub fn callback(status: RequestDeviceStatus, device: ?*Device, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.C) void {
+            const wrapped_callback: CallbackType = @ptrCast(userdata2);
+            const userdata: UserDataPointerType = @ptrCast(@alignCast(userdata1));
+            const response: RequestDeviceError!*Device = switch (status) {
+                .success => device.?,
+                .instance_dropped => RequestDeviceError.RequestDeviceInstanceDropped,
+                .@"error" => RequestDeviceError.RequestDeviceError,
+                .unknown => RequestDeviceError.RequestDeviceUnknown,
+            };
+            wrapped_callback(response, message.toSlice(), userdata);
+        }
+    };
+}
 
 pub const PopErrorScopeStatus = enum(u32) {
     success          = 0x00000001, // The error scope stack was successfully popped and a result was reported.

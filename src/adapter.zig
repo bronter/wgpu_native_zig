@@ -22,10 +22,9 @@ const Device = _device.Device;
 const DeviceDescriptor = _device.DeviceDescriptor;
 const WGPUDeviceDescriptor = _device.WGPUDeviceDescriptor;
 const WGPUDeviceExtras = _device.WGPUDeviceExtras;
-const RequestDeviceCallback = _device.RequestDeviceCallback;
 const RequestDeviceCallbackInfo = _device.RequestDeviceCallbackInfo;
-const RequestDeviceStatus = _device.RequestDeviceStatus;
-const RequestDeviceResponse = _device.RequestDeviceResponse;
+const RequestDeviceError = _device.RequestDeviceError;
+const MakeRequestDeviceCallbackTrampoline = _device.MakeRequestDeviceCallbackTrampoline;
 
 const _async = @import("async.zig");
 const CallbackMode = _async.CallbackMode;
@@ -141,12 +140,6 @@ pub fn MakeRequestAdapterCallbackTrampoline(
     };
 }
 
-pub const RequestAdapterResponse = struct {
-    status: RequestAdapterStatus,
-    message: ?[]const u8,
-    adapter: ?*Adapter,
-};
-
 extern fn wgpuAdapterInfoFreeMembers(adapter_info: WGPUAdapterInfo) void;
 
 pub const AdapterInfo = struct {
@@ -202,7 +195,7 @@ extern fn wgpuAdapterRelease(adapter: *Adapter) void;
 pub const AdapterError = error {
     FailedToGetLimits,
     FailedToGetInfo,
-} || std.mem.Allocator.Error;
+} || RequestDeviceError || std.mem.Allocator.Error;
 
 pub const Adapter = opaque{
     pub inline fn getFeatures(self: *Adapter, allocator: std.mem.Allocator) AdapterError![]FeatureName {
@@ -239,43 +232,57 @@ pub const Adapter = opaque{
         return wgpuAdapterHasFeature(self, feature) != 0;
     }
 
-    fn defaultDeviceCallback(status: RequestDeviceStatus, device: ?*Device, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.C) void {
-        const ud_response: *RequestDeviceResponse = @ptrCast(@alignCast(userdata1));
-        ud_response.* = RequestDeviceResponse {
-            .status = status,
-            .message = message.toSlice(),
-            .device = device,
+    fn defaultDeviceCallback(response: RequestDeviceError!*Device, maybe_message: ?[]const u8, userdata: *?RequestDeviceError!*Device) void {
+        userdata.* = response catch blk: {
+            if (maybe_message) |message| {
+                std.log.err("{s}\n", .{message});
+            }
+            break :blk response;
         };
-
-        const completed: *bool = @ptrCast(@alignCast(userdata2));
-        completed.* = true;
     }
 
     // This is a synchronous wrapper that handles asynchronous (callback) logic.
     // It uses polling to see when the request has been fulfilled, so needs a polling interval parameter.
-    pub fn requestDeviceSync(self: *Adapter, instance: *Instance, descriptor: ?DeviceDescriptor, polling_interval_nanoseconds: u64) RequestDeviceResponse {
-        var response: RequestDeviceResponse = undefined;
-        var completed = false;
-        const callback_info = RequestDeviceCallbackInfo {
-            .callback = defaultDeviceCallback,
-            .userdata1 = @ptrCast(&response),
-            .userdata2 = @ptrCast(&completed),
-        };
-        const device_future = self.requestDevice(descriptor, callback_info);
+    pub fn requestDeviceSync(self: *Adapter, instance: *Instance, descriptor: ?DeviceDescriptor, polling_interval_nanoseconds: u64) AdapterError!*Device {
+        var device_response: ?RequestDeviceError!*Device = null;
+
+        const device_future = self.requestDevice(
+            null,
+            &device_response,
+            defaultDeviceCallback,
+            descriptor,
+        );
 
         // TODO: Revisit once Instance.waitAny() is implemented in wgpu-native,
         //       it takes in futures and returns when one of them completes.
         _ = device_future;
         instance.processEvents();
-        while(!completed) {
+        while (device_response == null) {
             std.Thread.sleep(polling_interval_nanoseconds);
             instance.processEvents();
         }
 
-        return response;
+        return device_response.?;
     }
 
-    pub inline fn requestDevice(self: *Adapter, descriptor: ?DeviceDescriptor, callback_info: RequestDeviceCallbackInfo) Future {
+    pub fn requestDevice(
+        self: *Adapter,
+        mode: ?CallbackMode,
+        userdata: anytype,
+        callback: *const fn(RequestDeviceError!*Device, ?[]const u8, @TypeOf(userdata)) void,
+        descriptor: ?DeviceDescriptor,
+    ) Future {
+        if (@typeInfo(@TypeOf(userdata)) != .pointer) {
+            @compileError("userdata should be a pointer type");
+        }
+        const Trampoline = MakeRequestDeviceCallbackTrampoline(@TypeOf(userdata));
+        const callback_info = RequestDeviceCallbackInfo {
+            .mode = mode orelse CallbackMode.allow_process_events,
+            .callback = Trampoline.callback,
+            .userdata1 = @ptrCast(userdata),
+            .userdata2 = @constCast(@ptrCast(callback)),
+        };
+
         if(descriptor) |d| {
             var device_extras: ?*const ChainedStruct = undefined;
             if(d.native_extras) |native_extras| {
@@ -299,8 +306,8 @@ pub const Adapter = opaque{
         } else {
             return wgpuAdapterRequestDevice(self, null, callback_info);
         }
-
     }
+
     pub inline fn addRef(self: *Adapter) void {
         wgpuAdapterAddRef(self);
     }
@@ -310,14 +317,8 @@ pub const Adapter = opaque{
 };
 
 test "can request device" {
-    const testing = @import("std").testing;
-
     const instance = try Instance.create(null);
-    const adapter = try instance.requestAdapterSync(null, 200_000_000);
-    const device_response = adapter.requestDeviceSync(instance, null, 200_000_000);
-    const device: ?*Device = switch(device_response.status) {
-        .success => device_response.device,
-        else => null
-    };
-    try testing.expect(device != null);
+    const adapter = try instance.requestAdapterSync(null, 0);
+    const device = try adapter.requestDeviceSync(instance, null, 0);
+    _ = device;
 }

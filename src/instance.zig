@@ -11,7 +11,6 @@ const RequestAdapterOptions = _adapter.RequestAdapterOptions;
 const RequestAdapterCallbackInfo = _adapter.RequestAdapterCallbackInfo;
 const RequestAdapterCallback = _adapter.RequestAdapterCallback;
 const RequestAdapterError = _adapter.RequestAdapterError;
-const RequestAdapterResponse = _adapter.RequestAdapterResponse;
 const BackendType = _adapter.BackendType;
 const MakeRequestAdapterCallbackTrampoline = _adapter.MakeRequestAdapterCallbackTrampoline;
 

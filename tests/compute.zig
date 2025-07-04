@@ -20,11 +20,7 @@ fn compute_collatz() ![4]u32 {
     const adapter = try instance.requestAdapterSync(null, 0);
     defer adapter.release();
 
-    const device_response = adapter.requestDeviceSync(instance, null, 200_000_000);
-    const device: *wgpu.Device = switch(device_response.status) {
-        .success => device_response.device.?,
-        else => return error.NoDevice,
-    };
+    const device = try adapter.requestDeviceSync(instance, null, 0);
     defer device.release();
 
     const queue = try device.getQueue();
