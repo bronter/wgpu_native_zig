@@ -89,6 +89,19 @@ pub const InstanceExtras = struct {
     dxil_path: []const u8 = "",
     dxc_path: []const u8 = "",
     dxc_max_shader_model: DxcMaxShaderModel,
+
+    fn toWGPU(self: InstanceExtras) WGPUInstanceExtras {
+        return WGPUInstanceExtras {
+            .backends = self.backends,
+            .flags = self.flags,
+            .dx12_shader_compiler = self.dx12_shader_compiler,
+            .gles3_minor_version = self.gles3_minor_version,
+            .gl_fence_behavior = self.gl_fence_behavior,
+            .dxil_path = StringView.fromSlice(self.dxil_path),
+            .dxc_path = StringView.fromSlice(self.dxc_path),
+            .dxc_max_shader_model = self.dxc_max_shader_model,
+        };
+    }
 };
 
 const WGPUInstanceExtras = extern struct {
@@ -114,6 +127,13 @@ pub const InstanceCapabilities = struct {
 
     // The maximum number FutureWaitInfo supported in a call to Instance.waitAny() with `timeoutNS > 0`.
     timed_wait_any_max_count: usize,
+
+    fn toWGPU(self: InstanceCapabilities) WGPUInstanceCapabilities {
+        return WGPUInstanceCapabilities {
+            .timed_wait_any_enable = @intFromBool(self.timed_wait_any_enable),
+            .timed_wait_any_max_count = self.timed_wait_any_max_count,
+        };
+    }
 };
 
 const WGPUInstanceCapabilities = extern struct {
@@ -125,11 +145,34 @@ const WGPUInstanceCapabilities = extern struct {
 
     // The maximum number FutureWaitInfo supported in a call to ::wgpuInstanceWaitAny with `timeoutNS > 0`.
     timed_wait_any_max_count: usize,
+
+    fn toInstanceCapabilities(self: WGPUInstanceCapabilities) InstanceCapabilities {
+        return InstanceCapabilities {
+            .next_in_chain = self.next_in_chain,
+            .timed_wait_any_enable = self.timed_wait_any_enable != 0,
+            .timed_wait_any_max_count = self.timed_wait_any_max_count,
+        };
+    }
 };
 
 pub const InstanceDescriptor = struct {
+    // Instance features to enable
     features: InstanceCapabilities,
     native_extras: ?InstanceExtras = null,
+
+    fn toWGPU(self: InstanceDescriptor) WGPUInstanceDescriptor {
+        var instance_extras: ?*const ChainedStruct = undefined;
+        if (self.native_extras) |native_extras| {
+            instance_extras = @ptrCast(&native_extras.toWGPU());
+        } else {
+            instance_extras = null;
+        }
+
+        return WGPUInstanceDescriptor {
+            .next_in_chain = instance_extras,
+            .features = self.features.toWGPU(),
+        };
+    }
 };
 
 const WGPUInstanceDescriptor = extern struct {
@@ -137,12 +180,6 @@ const WGPUInstanceDescriptor = extern struct {
 
     // Instance features to enable
     features: WGPUInstanceCapabilities,
-
-    // pub inline fn withNativeExtras(self: InstanceDescriptor, extras: *InstanceExtras) InstanceDescriptor {
-    //     var id = self;
-    //     id.next_in_chain = @ptrCast(extras);
-    //     return id;
-    // }
 };
 
 pub const WGSLLanguageFeatureName = enum(u32) {
@@ -232,29 +269,7 @@ pub const Instance = opaque {
     pub fn create(descriptor: ?InstanceDescriptor) InstanceError!*Instance {
         var maybe_instance: ?*Instance = undefined;
         if (descriptor) |d| {
-            var instance_extras: ?*const ChainedStruct = undefined;
-            if (d.native_extras) |native_extras| {
-                instance_extras = @ptrCast(&WGPUInstanceExtras {
-                    .backends = native_extras.backends,
-                    .flags = native_extras.flags,
-                    .dx12_shader_compiler = native_extras.dx12_shader_compiler,
-                    .gles3_minor_version = native_extras.gles3_minor_version,
-                    .gl_fence_behavior = native_extras.gl_fence_behavior,
-                    .dxil_path = StringView.fromSlice(native_extras.dxil_path),
-                    .dxc_path = StringView.fromSlice(native_extras.dxc_path),
-                    .dxc_max_shader_model = native_extras.dxc_max_shader_model,
-                });
-            } else {
-                instance_extras = null;
-            }
-
-            maybe_instance = wgpuCreateInstance(&WGPUInstanceDescriptor {
-                .next_in_chain = instance_extras,
-                .features = WGPUInstanceCapabilities {
-                    .timed_wait_any_enable = @intFromBool(d.features.timed_wait_any_enable),
-                    .timed_wait_any_max_count = d.features.timed_wait_any_max_count,
-                },
-            });
+            maybe_instance = wgpuCreateInstance(&d.toWGPU());
         } else {
             maybe_instance = wgpuCreateInstance(null);
         }
@@ -267,11 +282,7 @@ pub const Instance = opaque {
     pub inline fn getCapabilities() InstanceError!InstanceCapabilities {
         var wgpu_capabilities: WGPUInstanceCapabilities = undefined;
         if (wgpuGetInstanceCapabilities(&wgpu_capabilities) == Status.success) {
-            return InstanceCapabilities {
-                .next_in_chain = wgpu_capabilities.next_in_chain,
-                .timed_wait_any_enable = wgpu_capabilities.timed_wait_any_enable != 0,
-                .timed_wait_any_max_count = wgpu_capabilities.timed_wait_any_max_count,
-            };
+            return wgpu_capabilities.toInstanceCapabilities();
         } else {
             return InstanceError.FailedToGetCapabilities;
         }
