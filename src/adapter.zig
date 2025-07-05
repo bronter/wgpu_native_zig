@@ -331,25 +331,7 @@ pub const Adapter = opaque{
         };
 
         if(descriptor) |d| {
-            var device_extras: ?*const ChainedStruct = undefined;
-            if(d.native_extras) |native_extras| {
-                device_extras = @ptrCast(&WGPUDeviceExtras {
-                    .trace_path = .fromSlice(native_extras.trace_path),
-                });
-            } else {
-                device_extras = null;
-            }
-
-            return wgpuAdapterRequestDevice(self, &WGPUDeviceDescriptor{
-                .next_in_chain = device_extras,
-                .label = .fromSlice(d.label),
-                .required_feature_count = d.required_features.len,
-                .required_features = d.required_features.ptr,
-                .required_limits = if(d.required_limits) |l| &l else null,
-                .default_queue = d.default_queue,
-                .device_lost_callback_info = d.device_lost_callback_info,
-                .uncaptured_error_callback_info = d.uncaptured_error_callback_info,
-            }, callback_info);
+            return wgpuAdapterRequestDevice(self, &d.toWGPU(), callback_info);
         } else {
             return wgpuAdapterRequestDevice(self, null, callback_info);
         }
