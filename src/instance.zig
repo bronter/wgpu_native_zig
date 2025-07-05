@@ -8,6 +8,7 @@ const SType = _chained_struct.SType;
 const _adapter = @import("adapter.zig");
 const Adapter = _adapter.Adapter;
 const RequestAdapterOptions = _adapter.RequestAdapterOptions;
+const WGPURequestAdapterOptions = _adapter.WGPURequestAdapterOptions;
 const RequestAdapterCallbackInfo = _adapter.RequestAdapterCallbackInfo;
 const RequestAdapterCallback = _adapter.RequestAdapterCallback;
 const RequestAdapterError = _adapter.RequestAdapterError;
@@ -213,7 +214,7 @@ extern fn wgpuInstanceCreateSurface(instance: *Instance, descriptor: *const Surf
 extern fn wgpuInstanceGetWGSLLanguageFeatures(instance: *Instance, features: *WGPUSupportedWGSLLanguageFeatures) Status;
 extern fn wgpuInstanceHasWGSLLanguageFeature(instance: *Instance, feature: WGSLLanguageFeatureName) WGPUBool;
 extern fn wgpuInstanceProcessEvents(instance: *Instance) void;
-extern fn wgpuInstanceRequestAdapter(instance: *Instance, options: ?*const RequestAdapterOptions, callback_info: RequestAdapterCallbackInfo) Future;
+extern fn wgpuInstanceRequestAdapter(instance: *Instance, options: ?*const WGPURequestAdapterOptions, callback_info: RequestAdapterCallbackInfo) Future;
 extern fn wgpuInstanceWaitAny(instance: *Instance, future_count: usize, futures: ?[*] FutureWaitInfo, timeout_ns: u64) WaitStatus;
 extern fn wgpuInstanceAddRef(instance: *Instance) void;
 extern fn wgpuInstanceRelease(instance: *Instance) void;
@@ -363,7 +364,7 @@ pub const Instance = opaque {
             .userdata2 = @constCast(@ptrCast(callback)),
         };
         if (options) |o| {
-            return wgpuInstanceRequestAdapter(self, &o, callback_info);
+            return wgpuInstanceRequestAdapter(self, &o.toWGPU(), callback_info);
         } else {
             return wgpuInstanceRequestAdapter(self, null, callback_info);
         }

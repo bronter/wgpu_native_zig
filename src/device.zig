@@ -147,6 +147,28 @@ pub const DeviceDescriptor = struct {
     device_lost_callback_info: DeviceLostCallbackInfo = DeviceLostCallbackInfo {},
     uncaptured_error_callback_info: UncapturedErrorCallbackInfo = UncapturedErrorCallbackInfo{},
     native_extras: ?DeviceExtras = null,
+    
+    pub fn toWGPU(self: DeviceDescriptor) WGPUDeviceDescriptor {
+        var device_extras: ?*const ChainedStruct = undefined;
+        if(self.native_extras) |native_extras| {
+            device_extras = @ptrCast(&WGPUDeviceExtras {
+                .trace_path = .fromSlice(native_extras.trace_path),
+            });
+        } else {
+            device_extras = null;
+        }
+
+        return WGPUDeviceDescriptor {
+            .next_in_chain = device_extras,
+            .label = .fromSlice(self.label),
+            .required_feature_count = self.required_features.len,
+            .required_features = self.required_features.ptr,
+            .required_limits = if(self.required_limits) |l| &l else null,
+            .default_queue = self.default_queue,
+            .device_lost_callback_info = self.device_lost_callback_info,
+            .uncaptured_error_callback_info = self.uncaptured_error_callback_info,
+        };
+    }
 };
 
 pub const WGPUDeviceDescriptor = extern struct {
@@ -158,6 +180,24 @@ pub const WGPUDeviceDescriptor = extern struct {
     default_queue: QueueDescriptor = QueueDescriptor{},
     device_lost_callback_info: DeviceLostCallbackInfo = DeviceLostCallbackInfo {},
     uncaptured_error_callback_info: UncapturedErrorCallbackInfo = UncapturedErrorCallbackInfo{},
+
+    pub fn toDeviceDescriptor(self: WGPUDeviceDescriptor) DeviceDescriptor {
+        var device_extras: ?*const WGPUDeviceExtras = null;
+        if(self.next_in_chain) |n| {
+            device_extras = @ptrCast(n);
+        }
+
+        return DeviceDescriptor{
+            .label = self.label,
+            .required_feature_count = self.required_feature_count,
+            .required_features = self.required_features,
+            .required_limits = self.required_limits,
+            .default_queue = self.default_queue,
+            .device_lost_callback_info = self.device_lost_callback_info,
+            .uncaptured_error_callback_info = self.uncaptured_error_callback_info,
+            .native_extras = if(device_extras) |d| d.trace_path.toSlice() else null,
+        };
+    }
 };
 
 const RequestDeviceStatus = enum(u32) {
