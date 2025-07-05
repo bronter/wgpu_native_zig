@@ -74,6 +74,42 @@ pub const RequestAdapterOptions = extern struct {
 
     // If true, requires the adapter to be a "fallback" adapter as defined by the JS spec.
     // If this is not possible, the request returns null.
+    force_fallback_adapter: bool = false,
+
+    // If set, requires the adapter to have a particular backend type.
+    // If this is not possible, the request returns null.
+    backend_type: BackendType = BackendType.@"undefined",
+
+    // If set, requires the adapter to be able to output to a particular surface.
+    // If this is not possible, the request returns null.
+    compatible_surface: ?*Surface = null,
+
+    pub fn toWGPU(self: RequestAdapterOptions) WGPURequestAdapterOptions {
+        return WGPURequestAdapterOptions{
+            .next_in_chain = self.next_in_chain,
+            .feature_level = self.feature_level,
+            .power_preference = self.power_preference,
+            .force_fallback_adapter = @intFromBool(self.force_fallback_adapter),
+            .backend_type = self.backend_type,
+            .compatible_surface = self.compatible_surface,
+        };
+    }
+};
+
+pub const WGPURequestAdapterOptions = extern struct {
+    next_in_chain: ?*const ChainedStruct = null,
+
+    // "Feature level" for the adapter request. If an adapter is returned,
+    // it must support the features and limits in the requested feature level.
+    //
+    // Implementations may ignore FeatureLevel.compatibility and provide FeatureLevel.core instead.
+    // FeatureLevel.core is the default in the JS API, but in C, this field is **required** (must not be undefined).
+    feature_level: FeatureLevel = FeatureLevel.core,
+
+    power_preference: PowerPreference = PowerPreference.@"undefined",
+
+    // If true, requires the adapter to be a "fallback" adapter as defined by the JS spec.
+    // If this is not possible, the request returns null.
     force_fallback_adapter: WGPUBool = @intFromBool(false),
 
     // If set, requires the adapter to have a particular backend type.
@@ -83,6 +119,17 @@ pub const RequestAdapterOptions = extern struct {
     // If set, requires the adapter to be able to output to a particular surface.
     // If this is not possible, the request returns null.
     compatible_surface: ?*Surface = null,
+
+    pub fn toRequestAdapterOptions(self: WGPURequestAdapterOptions) RequestAdapterOptions {
+        return RequestAdapterOptions{
+            .next_in_chain = self.next_in_chain,
+            .feature_level = self.feature_level,
+            .power_preference = self.power_preference,
+            .force_fallback_adapter = self.force_fallback_adapter != 0,
+            .backend_type = self.backend_type,
+            .compatible_surface = self.compatible_surface,
+        };
+    }
 };
 
 const RequestAdapterStatus = enum(u32) {
