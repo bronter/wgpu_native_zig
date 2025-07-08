@@ -160,7 +160,7 @@ pub fn main() !void {
         const buf: [*]u8 = @ptrCast(@alignCast(staging_buffer.getMappedRange(0, output_size).?));
         defer staging_buffer.unmap();
 
-        const output = buf[0..output_size].*;
+        const output = buf[0..output_size];
         try bmp.write24BitBMP("examples/output/triangle.bmp", output_extent.width, output_extent.height, output);
     }
 }
