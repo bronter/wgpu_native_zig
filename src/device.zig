@@ -148,7 +148,7 @@ pub const DeviceDescriptor = struct {
     uncaptured_error_callback_info: UncapturedErrorCallbackInfo = UncapturedErrorCallbackInfo{},
     native_extras: ?DeviceExtras = null,
     
-    pub fn toWGPU(self: DeviceDescriptor) WGPUDeviceDescriptor {
+    pub fn toWGPU(self: *const DeviceDescriptor) WGPUDeviceDescriptor {
         var device_extras: ?*const ChainedStruct = undefined;
         if(self.native_extras) |native_extras| {
             device_extras = @ptrCast(&WGPUDeviceExtras {
@@ -158,12 +158,17 @@ pub const DeviceDescriptor = struct {
             device_extras = null;
         }
 
+        // Can't do the normal "if(some_struct.optional_value) |value|" format here,
+        // because "&value" would be the the address of the value on the stack, not the address of the value in the struct,
+        // and once this function returns the stack address would be a dangling pointer.
+        const required_limits_ptr = if (self.required_limits != null) &self.required_limits.? else null; 
+
         return WGPUDeviceDescriptor {
             .next_in_chain = device_extras,
             .label = .fromSlice(self.label),
             .required_feature_count = self.required_features.len,
             .required_features = self.required_features.ptr,
-            .required_limits = if(self.required_limits) |l| &l else null,
+            .required_limits = required_limits_ptr,
             .default_queue = self.default_queue,
             .device_lost_callback_info = self.device_lost_callback_info,
             .uncaptured_error_callback_info = self.uncaptured_error_callback_info,

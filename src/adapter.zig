@@ -246,7 +246,7 @@ pub const AdapterError = error {
 
 pub const Adapter = opaque{
     pub inline fn getFeatures(self: *Adapter, allocator: std.mem.Allocator) AdapterError![]FeatureName {
-        var features = SupportedFeatures{};
+        var features: SupportedFeatures = undefined;
         defer features.freeMembers();
 
         wgpuAdapterGetFeatures(self, &features);
@@ -349,5 +349,37 @@ test "can request device" {
     const instance = try Instance.create(null);
     const adapter = try instance.requestAdapterSync(null, 0);
     const device = try adapter.requestDeviceSync(instance, null, 0);
+    _ = device;
+}
+
+test "can request device with descriptor" {
+    const instance = try Instance.create(null);
+    const adapter = try instance.requestAdapterSync(null, 0);
+
+    const allocator = std.testing.allocator;
+    const required_features = try adapter.getFeatures(allocator);
+    defer allocator.free(required_features);
+
+    const limits = try adapter.getLimits(); 
+
+    const descriptor = DeviceDescriptor {
+        .label = "test device",
+        .required_features = required_features,
+        .required_limits = limits,
+        .native_extras = .{
+            .trace_path = "./device_trace",
+        },
+        .default_queue = .{
+            // TODO: Will need to revisit this after refactoring QueueDescriptor
+            .label = StringView.fromSlice("test queue"),
+        },
+
+        // TODO: Revisit these after refatoring callbacks for those two.
+        .device_lost_callback_info = .{},
+        .uncaptured_error_callback_info = .{},
+    };
+
+    const device = try adapter.requestDeviceSync(instance, descriptor, 0);
+
     _ = device;
 }
