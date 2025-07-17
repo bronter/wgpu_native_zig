@@ -164,13 +164,6 @@ pub const CompilationInfoCallbackInfo = extern struct {
     userdata2: ?*anyopaque = null,
 };
 
-pub const ShaderModuleProcs = struct {
-    pub const GetCompilationInfo = *const fn(*ShaderModule, CompilationInfoCallbackInfo) callconv(.C) Future;
-    pub const SetLabel = *const fn(*ShaderModule, StringView) callconv(.C) void;
-    pub const AddRef = *const fn(*ShaderModule) callconv(.C) void;
-    pub const Release = *const fn(*ShaderModule) callconv(.C) void;
-};
-
 extern fn wgpuShaderModuleGetCompilationInfo(shader_module: *ShaderModule, callback_info: CompilationInfoCallbackInfo) Future;
 extern fn wgpuShaderModuleSetLabel(shader_module: *ShaderModule, label: StringView) void;
 extern fn wgpuShaderModuleAddRef(shader_module: *ShaderModule) void;

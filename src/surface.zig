@@ -272,10 +272,6 @@ pub const SurfaceConfiguration = extern struct {
     }
 };
 
-pub const SurfaceCapabilitiesProcs = struct {
-    pub const FreeMembers = *const fn(SurfaceCapabilities) callconv(.C) void;
-};
-
 extern fn wgpuSurfaceCapabilitiesFreeMembers(surface_capabilities: SurfaceCapabilities) void;
 
 // Filled by Surface.getCapabilities() with what's supported for Surface.configure() for a pair of Surface and Adapter.
@@ -344,17 +340,6 @@ pub const SurfaceTexture = extern struct {
 
     // Whether the call to Surface.getCurrentTexture() succeeded and a hint as to why it might not have.
     status: GetCurrentTextureStatus,
-};
-
-pub const SurfaceProcs = struct {
-    pub const Configure = *const fn(*Surface, *const SurfaceConfiguration) callconv(.C) void;
-    pub const GetCapabilities = *const fn(*Surface, *Adapter, *SurfaceCapabilities) callconv(.C) Status;
-    pub const GetCurrentTexture = *const fn(*Surface, *SurfaceTexture) callconv(.C) void;
-    pub const Present = *const fn(*Surface) callconv(.C) Status;
-    pub const SetLabel = *const fn(*Surface, StringView) void;
-    pub const Unconfigure = *const fn(*Surface) callconv(.C) void;
-    pub const AddRef = *const fn(*Surface) callconv(.C) void;
-    pub const Release = *const fn(*Surface) callconv(.C) void;
 };
 
 extern fn wgpuSurfaceConfigure(surface: *Surface, config: *const SurfaceConfiguration) void;

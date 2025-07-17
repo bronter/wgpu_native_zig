@@ -154,12 +154,6 @@ pub const TextureViewDescriptor = extern struct {
     usage: TextureUsage = TextureUsage.none,
 };
 
-pub const TextureViewProcs = struct {
-    pub const SetLabel = *const fn(*TextureView, StringView) callconv(.C) void;
-    pub const AddRef = *const fn(*TextureView) callconv(.C) void;
-    pub const Release = *const fn(*TextureView) callconv(.C) void;
-};
-
 extern fn wgpuTextureViewSetLabel(texture_view: *TextureView, label: StringView) void;
 extern fn wgpuTextureViewAddRef(texture_view: *TextureView) void;
 extern fn wgpuTextureViewRelease(texture_view: *TextureView) void;
@@ -254,22 +248,6 @@ pub const TextureDescriptor = extern struct {
     sample_count: u32 = 1,
     view_format_count: usize = 0,
     view_formats: [*]const TextureFormat = &[_]TextureFormat {},
-};
-
-pub const TextureProcs = struct {
-    pub const CreateView = *const fn(*Texture, ?*const TextureViewDescriptor) callconv(.C) ?*TextureView;
-    pub const Destroy = *const fn(*Texture) callconv(.C) void;
-    pub const GetDepthOrArrayLayers = *const fn(*Texture) callconv(.C) u32;
-    pub const GetDimension = *const fn(*Texture) callconv(.C) TextureDimension;
-    pub const GetFormat = *const fn(*Texture) callconv(.C) TextureFormat;
-    pub const GetHeight = *const fn(*Texture) callconv(.C) u32;
-    pub const GetMipLevelCount = *const fn(*Texture) callconv(.C) u32;
-    pub const GetSampleCount = *const fn(*Texture) callconv(.C) u32;
-    pub const GetUsage = *const fn(*Texture) callconv(.C) TextureUsage;
-    pub const GetWidth = *const fn(*Texture) callconv(.C) u32;
-    pub const SetLabel = *const fn(*Texture, StringView) callconv(.C) void;
-    pub const AddRef = *const fn(*Texture) callconv(.C) void;
-    pub const Release = *const fn(*Texture) callconv(.C) void;
 };
 
 extern fn wgpuTextureCreateView(texture: *Texture, descriptor: ?*const TextureViewDescriptor) ?*TextureView;

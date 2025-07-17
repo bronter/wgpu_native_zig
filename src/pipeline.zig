@@ -55,12 +55,6 @@ pub const PipelineLayoutDescriptor = extern struct {
     }
 };
 
-pub const PipelineLayoutProcs = struct {
-    pub const SetLabel = *const fn(*PipelineLayout, StringView) callconv(.C) void;
-    pub const AddRef = *const fn(*PipelineLayout) callconv(.C) void;
-    pub const Release = *const fn(*PipelineLayout) callconv(.C) void;
-};
-
 extern fn wgpuPipelineLayoutSetLabel(pipeline_layout: *PipelineLayout, label: StringView) void;
 extern fn wgpuPipelineLayoutAddRef(pipeline_layout: *PipelineLayout) void;
 extern fn wgpuPipelineLayoutRelease(pipeline_layout: *PipelineLayout) void;
@@ -129,13 +123,6 @@ pub const CreateComputePipelineAsyncCallback = *const fn(
     userdata1: ?*anyopaque,
     userdata2: ?*anyopaque,
 ) callconv(.C) void;
-
-pub const ComputePipelineProcs = struct {
-    pub const GetBindGroupLayout = *const fn(*ComputePipeline, u32) callconv(.C) ?*BindGroupLayout;
-    pub const SetLabel = *const fn(*ComputePipeline, StringView) callconv(.C) void;
-    pub const AddRef = *const fn(*ComputePipeline) callconv(.C) void;
-    pub const Release = *const fn(*ComputePipeline) callconv(.C) void;
-};
 
 extern fn wgpuComputePipelineGetBindGroupLayout(compute_pipeline: *ComputePipeline, group_index: u32) ?*BindGroupLayout;
 extern fn wgpuComputePipelineSetLabel(compute_pipeline: *ComputePipeline, label: StringView) void;
@@ -423,13 +410,6 @@ pub const RenderPipelineDescriptor = extern struct {
     depth_stencil: ?*const DepthStencilState = null,
     multisample: MultisampleState,
     fragment: ?*const FragmentState = null,
-};
-
-pub const RenderPipelineProcs = struct {
-    pub const GetBindGroupLayout = *const fn(*RenderPipeline, u32) callconv(.C) ?*BindGroupLayout;
-    pub const SetLabel = *const fn(*RenderPipeline, StringView) callconv(.C) void;
-    pub const AddRef = *const fn(*RenderPipeline) callconv(.C) void;
-    pub const Release = *const fn(*RenderPipeline) callconv(.C) void;
 };
 
 extern fn wgpuRenderPipelineGetBindGroupLayout(render_pipeline: *RenderPipeline, group_index: u32) ?*BindGroupLayout;

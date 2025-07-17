@@ -87,20 +87,6 @@ pub const BufferDescriptor = extern struct {
     mapped_at_creation: WGPUBool = @intFromBool(false),
 };
 
-pub const BufferProcs = struct {
-    pub const Destroy = *const fn(*Buffer) callconv(.C) void;
-    pub const GetConstMappedRange = *const fn(*Buffer, usize, usize) callconv(.C) ?*const anyopaque;
-    pub const GetMapState = *const fn(*Buffer) callconv(.C) BufferMapState;
-    pub const GetMappedRange = *const fn(*Buffer, usize, usize) callconv(.C) ?*anyopaque;
-    pub const GetSize = *const fn(*Buffer) callconv(.C) u64;
-    pub const GetUsage = *const fn(*Buffer) callconv(.C) BufferUsage;
-    pub const MapAsync = *const fn(*Buffer, MapMode, usize, usize, BufferMapCallbackInfo) callconv(.C) Future;
-    pub const SetLabel = *const fn(*Buffer, StringView) callconv(.C) void;
-    pub const Unmap = *const fn(*Buffer) callconv(.C) void;
-    pub const AddRef = *const fn(*Buffer) callconv(.C) void;
-    pub const Release = *const fn(*Buffer) callconv(.C) void;
-};
-
 extern fn wgpuBufferDestroy(buffer: *Buffer) void;
 extern fn wgpuBufferGetConstMappedRange(buffer: *Buffer, offset: usize, size: usize) ?*const anyopaque;
 extern fn wgpuBufferGetMapState(buffer: *Buffer) BufferMapState;
