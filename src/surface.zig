@@ -10,7 +10,6 @@ const _texture = @import("texture.zig");
 const Texture = _texture.Texture;
 const TextureFormat = _texture.TextureFormat;
 const TextureUsage = _texture.TextureUsage;
-// const TextureUsages = _texture.TextureUsages;
 
 const _device = @import("device.zig");
 const Device = _device.Device;
