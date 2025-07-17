@@ -40,6 +40,7 @@ pub const InstanceBackend = packed struct(WGPUFlags) {
     browser_webgpu: bool = false,
     _: u58 = 0,
     
+    pub const all = Instance{};
     pub const primary = InstanceBackend{ .vulkan = true , .metal = true, .dx12 = true, .browser_webgpu = true };
     pub const secondary = InstanceBackend{ .gl = true, .dx11 = true };
 };
