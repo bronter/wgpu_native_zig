@@ -10,7 +10,7 @@ This package exposes two modules: `wgpu-c` and `wgpu`.
 ## Adding this package to your build
 Add the package to your dependencies, either with:
 ```sh
-zig fetch --save https://github.com/bronter/wgpu_native_zig/archive/refs/tags/v6.4.0.tar.gz
+zig fetch --save https://github.com/bronter/wgpu_native_zig/archive/refs/tags/v6.5.0.tar.gz
 ```
 or by manually adding to your `build.zig.zon`:
 ```zig
@@ -22,7 +22,7 @@ or by manually adding to your `build.zig.zon`:
             // You can either use a commit hash:
             .url="https://github.com/bronter/wgpu_native_zig/archive/<commit_hash>.tar.gz",
             // or a tagged release:
-            // .url = "https://github.com/bronter/wgpu_native_zig/archive/refs/tags/v6.4.0.tar.gz`
+            // .url = "https://github.com/bronter/wgpu_native_zig/archive/refs/tags/v6.5.0.tar.gz`
             .hash="<dependency hash>"
         }
     }

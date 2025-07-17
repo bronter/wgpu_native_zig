@@ -100,7 +100,7 @@ pub const BindGroupEntryExtras = extern struct {
     buffer_count: usize = 0,
     samplers: ?[*]const *Sampler,
     sampler_count: usize = 0,
-    texture_views: ?[*]const TextureView,
+    texture_views: ?[*]const *TextureView,
     texture_view_count: usize = 0,
 };
 
