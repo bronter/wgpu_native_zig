@@ -39,7 +39,7 @@ pub fn main() !void {
         .label = wgpu.StringView.fromSlice("Render texture"),
         .size = output_extent,
         .format = swap_chain_format,
-        .usage = wgpu.TextureUsages.render_attachment | wgpu.TextureUsages.copy_src,
+        .usage = wgpu.TextureUsage{ .render_attachment = true, .copy_src = true },
     });
     defer target_texture.release();
 
@@ -56,7 +56,7 @@ pub fn main() !void {
 
     const staging_buffer = try device.createBuffer(&wgpu.BufferDescriptor {
         .label = wgpu.StringView.fromSlice("staging_buffer"),
-        .usage = wgpu.BufferUsages.map_read | wgpu.BufferUsages.copy_dst,
+        .usage = wgpu.BufferUsage{ .map_read = true, .copy_dst = true },
         .size = output_size,
         .mapped_at_creation = @as(u32, @intFromBool(false)),
     });
@@ -147,7 +147,7 @@ pub fn main() !void {
         queue.submit(&[_]*const wgpu.CommandBuffer{command_buffer});
 
         var buffer_map_complete = false;
-        _ = staging_buffer.mapAsync(wgpu.MapModes.read, 0, output_size, wgpu.BufferMapCallbackInfo {
+        _ = staging_buffer.mapAsync(wgpu.MapMode{ .read = true }, 0, output_size, wgpu.BufferMapCallbackInfo {
             .callback = handleBufferMap,
             .userdata1 = @ptrCast(&buffer_map_complete),
         });

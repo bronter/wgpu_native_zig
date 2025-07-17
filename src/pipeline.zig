@@ -381,14 +381,15 @@ pub const BlendState = extern struct {
     };
 };
 
-pub const ColorWriteMask = WGPUFlags;
-pub const ColorWriteMasks = struct {
-    pub const none  = @as(ColorWriteMask, 0x0000000000000000);
-    pub const red   = @as(ColorWriteMask, 0x0000000000000001);
-    pub const green = @as(ColorWriteMask, 0x0000000000000002);
-    pub const blue  = @as(ColorWriteMask, 0x0000000000000004);
-    pub const alpha = @as(ColorWriteMask, 0x0000000000000008);
-    pub const all        = none | red | green | blue | alpha;
+pub const ColorWriteMask = packed struct(WGPUFlags) {
+    red: bool = false,
+    green: bool = false,
+    blue: bool = false,
+    alpha: bool = false,
+    _: u60 = 0,
+
+    pub const none = ColorWriteMask{};
+    pub const all = ColorWriteMask{ .red = true, .green = true, .blue = true, .alpha = true };
 };
 
 pub const ColorTargetState = extern struct {
@@ -400,7 +401,7 @@ pub const ColorTargetState = extern struct {
     format: TextureFormat,
 
     blend: ?*const BlendState = null,
-    write_mask: ColorWriteMask = ColorWriteMasks.all,
+    write_mask: ColorWriteMask = ColorWriteMask.all,
 };
 
 pub const FragmentState = extern struct {

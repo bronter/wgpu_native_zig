@@ -31,25 +31,26 @@ const WaitStatus = _async.WaitStatus;
 const FutureWaitInfo = _async.FutureWaitInfo;
 const CallbackMode = _async.CallbackMode;
 
-pub const InstanceBackend = WGPUFlags;
-pub const InstanceBackends = struct {
-    pub const all            = @as(InstanceBackend, 0x00000000);
-    pub const vulkan         = @as(InstanceBackend, 0x00000001);
-    pub const gl             = @as(InstanceBackend, 0x00000002);
-    pub const metal          = @as(InstanceBackend, 0x00000004);
-    pub const dx12           = @as(InstanceBackend, 0x00000008);
-    pub const dx11           = @as(InstanceBackend, 0x00000010);
-    pub const browser_webgpu = @as(InstanceBackend, 0x00000020);
-    pub const primary        = vulkan | metal | dx12 | browser_webgpu;
-    pub const secondary      = gl | dx11;
+pub const InstanceBackend = packed struct(WGPUFlags) {
+    vulkan: bool = false,
+    gl: bool = false,
+    metal: bool = false,
+    dx12: bool = false,
+    dx11: bool = false,
+    browser_webgpu: bool = false,
+    _: u58 = 0,
+    
+    pub const primary = InstanceBackend{ .vulkan = true , .metal = true, .dx12 = true, .browser_webgpu = true };
+    pub const secondary = InstanceBackend{ .gl = true, .dx11 = true };
 };
 
-pub const InstanceFlag = WGPUFlags;
-pub const InstanceFlags = struct {
-    pub const default            = @as(InstanceFlag, 0x00000000);
-    pub const debug              = @as(InstanceFlag, 0x00000001);
-    pub const validation         = @as(InstanceFlag, 0x00000002);
-    pub const discard_hal_labels = @as(InstanceFlag, 0x00000004);
+pub const InstanceFlag = packed struct(WGPUFlags) {
+    debug: bool = false,
+    validation: bool = false,
+    discard_hal_labels: bool = false,
+    _: u61 = 0,
+
+    pub const default = InstanceFlag{};
 };
 
 pub const Dx12Compiler = enum(u32) {
