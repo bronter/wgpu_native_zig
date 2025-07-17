@@ -34,7 +34,7 @@ fn compute_collatz() ![4]u32 {
 
     const staging_buffer = try device.createBuffer(&wgpu.BufferDescriptor {
         .label = wgpu.StringView.fromSlice("staging_buffer"),
-        .usage = wgpu.BufferUsages.map_read | wgpu.BufferUsages.copy_dst,
+        .usage = wgpu.BufferUsage{ .map_read = true, .copy_dst = true },
         .size = numbers_size,
         .mapped_at_creation = @as(u32, @intFromBool(false)),
     });
@@ -42,7 +42,7 @@ fn compute_collatz() ![4]u32 {
 
     const storage_buffer = try device.createBuffer(&wgpu.BufferDescriptor {
         .label = wgpu.StringView.fromSlice("storage_buffer"),
-        .usage = wgpu.BufferUsages.storage | wgpu.BufferUsages.copy_dst | wgpu.BufferUsages.copy_src,
+        .usage = wgpu.BufferUsage{ .storage = true, .copy_dst = true, .copy_src = true },
         .size = numbers_size,
         .mapped_at_creation = @as(u32, @intFromBool(false)),
     });
@@ -103,7 +103,7 @@ fn compute_collatz() ![4]u32 {
     queue.submit(&[_]*const wgpu.CommandBuffer{command_buffer});
 
     var buffer_map_complete = false;
-    _ = staging_buffer.mapAsync(wgpu.MapModes.read, 0, numbers_size, wgpu.BufferMapCallbackInfo {
+    _ = staging_buffer.mapAsync(wgpu.MapMode{ .read = true }, 0, numbers_size, wgpu.BufferMapCallbackInfo {
         .callback = handleBufferMap,
         .userdata1 = @ptrCast(&buffer_map_complete),
     });

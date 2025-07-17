@@ -10,7 +10,6 @@ const _texture = @import("texture.zig");
 const Texture = _texture.Texture;
 const TextureFormat = _texture.TextureFormat;
 const TextureUsage = _texture.TextureUsage;
-const TextureUsages = _texture.TextureUsages;
 
 const _device = @import("device.zig");
 const Device = _device.Device;
@@ -246,7 +245,7 @@ pub const SurfaceConfiguration = extern struct {
     format: TextureFormat,
 
     // The TextureUsage of the surface's textures.
-    usage: TextureUsage = TextureUsages.render_attachment,
+    usage: TextureUsage = TextureUsage{ .render_attachment = true },
 
     // The width of the surface's textures
     width: u32,

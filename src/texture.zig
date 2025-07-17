@@ -120,14 +120,15 @@ pub const TextureFormat = enum(u32) {
     nv12                    = 0x00030007,
 };
 
-pub const TextureUsage = WGPUFlags;
-pub const TextureUsages = struct {
-    pub const none              = @as(TextureUsage, 0x0000000000000000);
-    pub const copy_src          = @as(TextureUsage, 0x0000000000000001);
-    pub const copy_dst          = @as(TextureUsage, 0x0000000000000002);
-    pub const texture_binding   = @as(TextureUsage, 0x0000000000000004);
-    pub const storage_binding   = @as(TextureUsage, 0x0000000000000008);
-    pub const render_attachment = @as(TextureUsage, 0x0000000000000010);
+pub const TextureUsage = packed struct(WGPUFlags) {
+    copy_src: bool = false,
+    copy_dst: bool = false,
+    texture_binding: bool = false,
+    storage_binding: bool = false,
+    render_attachment: bool = false,
+    _: u59 = 0,
+
+    pub const none = TextureUsage{};
 };
 
 // TODO: Like a lot of things in this file, this breaks from the wrapper code convention by having an unneeded prefix ("Texture")
@@ -150,7 +151,7 @@ pub const TextureViewDescriptor = extern struct {
     base_array_layer: u32 = 0,
     array_layer_count: u32 = WGPU_ARRAY_LAYER_COUNT_UNDEFINED,
     aspect: TextureAspect = TextureAspect.all,
-    usage: TextureUsage = TextureUsages.none,
+    usage: TextureUsage = TextureUsage.none,
 };
 
 pub const TextureViewProcs = struct {

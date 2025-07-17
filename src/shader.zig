@@ -12,12 +12,13 @@ const _async = @import("async.zig");
 const CallbackMode = _async.CallbackMode;
 const Future = _async.Future;
 
-pub const ShaderStage = WGPUFlags;
-pub const ShaderStages = struct {
-    pub const none     = @as(ShaderStage, 0x0000000000000000);
-    pub const vertex   = @as(ShaderStage, 0x0000000000000001);
-    pub const fragment = @as(ShaderStage, 0x0000000000000002);
-    pub const compute  = @as(ShaderStage, 0x0000000000000004);
+pub const ShaderStage = packed struct(WGPUFlags) {
+    vertex: bool = false,
+    fragment: bool = false,
+    compute: bool = false,
+    _: u61 = 0,
+    
+    pub const none = ShaderStage{};
 };
 
 pub const ShaderModuleDescriptor = extern struct {
