@@ -22,13 +22,9 @@ pub const AdapterType = _adapter.AdapterType;
 pub const BackendType = _adapter.BackendType;
 pub const FeatureLevel = _adapter.FeatureLevel;
 pub const RequestAdapterOptions = _adapter.RequestAdapterOptions;
-pub const RequestAdapterStatus = _adapter.RequestAdapterStatus;
 pub const RequestAdapterCallbackInfo = _adapter.RequestAdapterCallbackInfo;
 pub const RequestAdapterCallback = _adapter.RequestAdapterCallback;
-pub const RequestAdapterResponse = _adapter.RequestAdapterResponse;
-pub const AdapterInfoProcs = _adapter.AdapterInfoProcs;
 pub const AdapterInfo = _adapter.AdapterInfo;
-pub const AdapterProcs = _adapter.AdapterProcs;
 pub const Adapter = _adapter.Adapter;
 
 const _bind_group = @import("bind_group.zig");
@@ -99,14 +95,11 @@ pub const UncapturedErrorCallback = _device.UncapturedErrorCallback;
 pub const ErrorFilter = _device.ErrorFilter;
 pub const UncapturedErrorCallbackInfo = _device.UncapturedErrorCallbackInfo;
 pub const DeviceDescriptor = _device.DeviceDescriptor;
-pub const RequestDeviceStatus = _device.RequestDeviceStatus;
 pub const RequestDeviceCallback = _device.RequestDeviceCallback;
-pub const RequestDeviceResponse = _device.RequestDeviceResponse;
 pub const RequestDeviceCallbackInfo = _device.RequestDeviceCallbackInfo;
 pub const PopErrorScopeStatus = _device.PopErrorScopeStatus;
 pub const PopErrorScopeCallback = _device.PopErrorScopeCallback;
 pub const PopErrorScopeCallbackInfo = _device.PopErrorScopeCallbackInfo;
-pub const DeviceProcs = _device.DeviceProcs;
 pub const Device = _device.Device;
 
 const _instance = @import("instance.zig");
@@ -122,9 +115,7 @@ pub const InstanceExtras = _instance.InstanceExtras;
 pub const InstanceCapabilities = _instance.InstanceCapabilities;
 pub const InstanceDescriptor = _instance.InstanceDescriptor;
 pub const WGSLLanguageFeatureName = _instance.WGSLLanguageFeatureName;
-pub const SupportedWGSLLanguageFeaturesProcs = _instance.SupportedWGSLLanguageFeaturesProcs;
 pub const SupportedWGSLLanguageFeatures = _instance.SupportedWGSLLanguageFeatures;
-pub const InstanceProcs = _instance.InstanceProcs;
 pub const RegistryReport = _instance.RegistryReport;
 pub const HubReport = _instance.HubReport;
 pub const GlobalReport = _instance.GlobalReport;
@@ -306,3 +297,9 @@ pub const WaitStatus = _async.WaitStatus;
 pub const Future = _async.Future;
 pub const FutureWaitInfo = _async.FutureWaitInfo;
 
+test "root" {
+    // I've read that refAllDecls is considered a bit of a hack that might eventually get removed,
+    // but right now it's a pretty effective way to run all tests without duplicates, and catch
+    // syntax errors that were previously not covered by tests.
+    @import("std").testing.refAllDecls(@This());
+}
