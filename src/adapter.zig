@@ -374,7 +374,6 @@ test "can request device with descriptor" {
             .label = StringView.fromSlice("test queue"),
         },
 
-        // TODO: Revisit these after refatoring callbacks for those two.
         .device_lost_callback_info = .{},
         .uncaptured_error_callback_info = .{},
     };

@@ -105,6 +105,30 @@ pub fn defaultDeviceLostCallback(device: *const ?*Device, reason: DeviceLostReas
     std.debug.panic("Device lost: reason={s} message=\"{s}\"\n", .{ @tagName(reason), message.toSlice() orelse "" });
 }
 
+pub fn deviceLostCallbackInfo(
+    userdata: anytype,
+    callback: *const fn(device: ?*Device, reason: DeviceLostReason, message: []const u8, _userdata: @TypeOf(userdata)) void,
+) DeviceLostCallbackInfo {
+    const UserDataType = @TypeOf(userdata);
+    const CallbackType = @TypeOf(callback);
+    if (@typeInfo(UserDataType) != .pointer) {
+        @compileError("userdata should be a pointer type");
+    }
+    const Trampoline = struct {
+        fn cb(device: ?*Device, reason: DeviceLostReason, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.C) void {
+            const wrapped_callback: CallbackType = @ptrCast(userdata2);
+            const _userdata: UserDataType = @ptrCast(@alignCast(userdata1));
+            wrapped_callback(device, reason, message.toSlice(), _userdata);
+        }
+    };
+
+    return DeviceLostCallbackInfo {
+        .callback = Trampoline.cb,
+        .userdata1 = @ptrCast(userdata),
+        .userdata2 = @constCast(@ptrCast(callback)),
+    };
+}
+
 pub const DeviceExtras = struct {
     trace_path: []const u8,
 };
@@ -138,6 +162,30 @@ pub const UncapturedErrorCallbackInfo = extern struct {
     userdata1: ?*anyopaque = null,
     userdata2: ?*anyopaque = null,
 };
+
+pub fn uncapturedErrorCallbackInfo(
+    userdata: anytype,
+    callback: *const fn(device: ?*Device, error_type: ErrorType, message: []const u8, _userdata: @TypeOf(userdata)) void,
+) UncapturedErrorCallbackInfo {
+    const UserDataType = @TypeOf(userdata);
+    const CallbackType = @TypeOf(callback);
+    if (@typeInfo(UserDataType) != .pointer) {
+        @compileError("userdata should be a pointer type");
+    }
+    const Trampoline = struct {
+        fn cb(device: ?*Device, error_type: ErrorType, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.C) void {
+            const wrapped_callback: CallbackType = @ptrCast(userdata2);
+            const _userdata: UserDataType = @ptrCast(@alignCast(userdata1));
+            wrapped_callback(device, error_type, message.toSlice(), _userdata);
+        }
+    };
+
+    return UncapturedErrorCallbackInfo {
+        .callback = Trampoline.cb,
+        .userdata1 = @ptrCast(userdata),
+        .userdata2 = @constCast(@ptrCast(callback)),
+    };
+}
 
 pub const DeviceDescriptor = struct {
     label: []const u8 = "",
