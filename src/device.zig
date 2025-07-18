@@ -107,7 +107,7 @@ pub fn defaultDeviceLostCallback(device: *const ?*Device, reason: DeviceLostReas
 
 pub fn deviceLostCallbackInfo(
     userdata: anytype,
-    callback: *const fn(device: ?*Device, reason: DeviceLostReason, message: []const u8, _userdata: @TypeOf(userdata)) void,
+    callback: *const fn(device: *const ?*Device, reason: DeviceLostReason, message: ?[]const u8, _userdata: @TypeOf(userdata)) void,
 ) DeviceLostCallbackInfo {
     const UserDataType = @TypeOf(userdata);
     const CallbackType = @TypeOf(callback);
@@ -115,7 +115,7 @@ pub fn deviceLostCallbackInfo(
         @compileError("userdata should be a pointer type");
     }
     const Trampoline = struct {
-        fn cb(device: ?*Device, reason: DeviceLostReason, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.C) void {
+        fn cb(device: *const ?*Device, reason: DeviceLostReason, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.C) void {
             const wrapped_callback: CallbackType = @ptrCast(userdata2);
             const _userdata: UserDataType = @ptrCast(@alignCast(userdata1));
             wrapped_callback(device, reason, message.toSlice(), _userdata);
@@ -127,6 +127,23 @@ pub fn deviceLostCallbackInfo(
         .userdata1 = @ptrCast(userdata),
         .userdata2 = @constCast(@ptrCast(callback)),
     };
+}
+
+test "deviceLostCallbackInfo constructs valid DeviceLostCallbackInfo struct with custom callback" {
+    const CBStruct = struct {
+        fn cb(device: *const ?*Device, reason: DeviceLostReason, message: ?[]const u8, userdata: *bool) void {  
+            userdata.* = true;
+            _ = device;
+            _ = reason;
+            _ = message; 
+        }
+    };
+
+    var callback_called = false;
+    const not_device: ?*Device = null;
+    const cb_info = deviceLostCallbackInfo(&callback_called, CBStruct.cb);
+    cb_info.callback(&not_device, .unknown, StringView.fromSlice(""), cb_info.userdata1, cb_info.userdata2);
+    try std.testing.expect(callback_called);
 }
 
 pub const DeviceExtras = struct {
@@ -149,6 +166,13 @@ pub const ErrorType = enum(u32) {
 };
 
 pub const UncapturedErrorCallback = *const fn(device: ?*Device, error_type: ErrorType, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.C) void;
+pub fn defaultUncapturedErrorCallback(device: ?*Device, error_type: ErrorType, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.C) void {
+    _ = device;
+    _ = userdata1;
+    _ = userdata2;
+
+    std.log.err("Uncaptured error: reason={s} message=\"{s}\"\n", .{ @tagName(error_type), message.toSlice() orelse "" });
+}
 
 pub const ErrorFilter = enum(u32) {
     validation    = 0x00000001,
@@ -158,14 +182,14 @@ pub const ErrorFilter = enum(u32) {
 
 pub const UncapturedErrorCallbackInfo = extern struct {
     next_in_chain: ?*const ChainedStruct = null,
-    callback: ?UncapturedErrorCallback = null,
+    callback: UncapturedErrorCallback = defaultUncapturedErrorCallback,
     userdata1: ?*anyopaque = null,
     userdata2: ?*anyopaque = null,
 };
 
 pub fn uncapturedErrorCallbackInfo(
     userdata: anytype,
-    callback: *const fn(device: ?*Device, error_type: ErrorType, message: []const u8, _userdata: @TypeOf(userdata)) void,
+    callback: *const fn(device: ?*Device, error_type: ErrorType, message: ?[]const u8, _userdata: @TypeOf(userdata)) void,
 ) UncapturedErrorCallbackInfo {
     const UserDataType = @TypeOf(userdata);
     const CallbackType = @TypeOf(callback);
@@ -185,6 +209,22 @@ pub fn uncapturedErrorCallbackInfo(
         .userdata1 = @ptrCast(userdata),
         .userdata2 = @constCast(@ptrCast(callback)),
     };
+}
+
+test "uncapturedErrorCallbackInfo constructs valid UncapturedErrorCallbackInfo struct with custom callback" {
+    const CBStruct = struct {
+        fn cb(device: ?*Device, error_type: ErrorType, message: ?[]const u8, userdata: *bool) void {  
+            userdata.* = true;
+            _ = device;
+            _ = error_type;
+            _ = message; 
+        }
+    };
+
+    var callback_called = false;
+    const cb_info = uncapturedErrorCallbackInfo(&callback_called, CBStruct.cb);
+    cb_info.callback(null, .unknown, StringView.fromSlice(""), cb_info.userdata1, cb_info.userdata2);
+    try std.testing.expect(callback_called);
 }
 
 pub const DeviceDescriptor = struct {
